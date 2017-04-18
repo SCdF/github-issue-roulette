@@ -1,7 +1,8 @@
 /*jshint esversion: 6 */
 
-const _ = require('lodash'),
-      GitHubApi = require('github');
+const GitHubApi = require('github'),
+      _ = require('lodash'),
+      moment = require('moment');
 
 const {
   owner,
@@ -13,12 +14,12 @@ const {
   additionalQueryParams,
   labelsToAdd,
   message,
-  dryRun=true // Safer to force you to turn it on
+  numDaysOld = 0,
+  dryRun = true // Safer to force you to turn it on
 } = require('./config.json');
 
-const assignmentMessage = (message, assignee) => {
-  return message.replace(new RegExp(/@@/, 'g'), '@' + assignee);
-};
+const assignmentMessage = (message, assignee) =>
+  message.replace(new RegExp(/@@/, 'g'), '@' + assignee);
 
 const fetchIssuesBatch = 100;
 
@@ -86,6 +87,7 @@ const getOldestNIssues = (maxIssuesWanted, issues=[], page=1) => {
 
   return github.search.issues({
     q: ['is:open is:issue no:milestone no:assignee',
+        `updated:<${cutoffDate}`,
         `repo:${owner}/${repo}`,
         additionalQueryParams].join(' '),
 
@@ -95,7 +97,7 @@ const getOldestNIssues = (maxIssuesWanted, issues=[], page=1) => {
     per_page: fetchIssuesBatch,
     page: page
   }).then(results => {
-    results = results.items; // unbox search results from probably useful metadata
+    results = results.data.items; // unbox search results from probably useful metadata
     issues = issues.concat(results);
 
     if (results.length < fetchIssuesBatch) {
@@ -119,6 +121,11 @@ if (dryRun) {
   console.log('Dry-run enabled!');
 }
 
+const cutoffDate = moment().subtract(numDaysOld, 'd').format('YYYY-MM-DD');
+console.log(`Getting issues that haven't been touched since ${cutoffDate}`);
+
+var pickedIssues;
+
 getOldestNIssues(numIssuesToPickFrom).then(results => {
   console.log(`Found ${results.length} un-dealt-with issues in ${owner}/${repo}`);
 
@@ -127,6 +134,7 @@ getOldestNIssues(numIssuesToPickFrom).then(results => {
     return;
   }
 
+  pickedIssues = results;
   const shuffledIssues = _.shuffle(results);
 
   const promises = [];
@@ -150,6 +158,8 @@ getOldestNIssues(numIssuesToPickFrom).then(results => {
   }
 
   return Promise.all(promises);
+}).then(() => {
+  console.log(`All done!\nList of issues that we attempted to modify:\n ${pickedIssues.map(issue => issue.number)}`);
 }).catch(e => {
   console.log(e);
 });
