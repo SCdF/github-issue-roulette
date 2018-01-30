@@ -1,3 +1,9 @@
+# Deprecated
+
+Real repo is here: https://github.com/medic/github-issue-roulette
+
+---
+
 # github-issue-roulette
 
 Giant backlog getting you down? All those vague ideas and unimportant bugs feeling oppressive? Don't want to just nuke it all from orbit?
